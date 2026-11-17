@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>할 일 CRUD - 바닐라 JS</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 40px auto; }
+    li { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+    li.done span { text-decoration: line-through; color: #999; }
+    span { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1>할 일 (바닐라 JS)</h1>
+
+  <!-- 화면의 "뼈대"만 HTML로 만들어 둔다. 목록 내용은 JS가 채운다. -->
+  <input id="title" placeholder="할 일을 입력하고 Enter" />
+  <button id="addBtn">추가</button>
+  <p id="count"></p>
+  <ul id="list"></ul>
+
+  <!--
+    바로 실행: 이 파일을 더블클릭해서 브라우저로 열면 끝.
+    설치도, 빌드도, npm도 필요 없다. → 이게 "바닐라"의 장점이자 한계.
+  -->
+  <script>
+    // ===== 1. 데이터(상태) =====
+    // 서버 대신 메모리 배열을 DB처럼 쓴다. (새로고침하면 날아감)
+    let todos = [
+      { id: 1, title: 'DOM 개념 정리', done: true },
+      { id: 2, title: 'Vite 정리', done: false },
+    ];
+    let nextId = 3; // DB의 시퀀스(auto increment) 역할
+
+    // ===== 2. 화면 그리기 (Read) =====
+    // ★ 핵심: 바닐라는 "데이터가 바뀔 때마다 내가 직접 render()를 불러서" DOM을 다시 만들어야 한다.
+    //   React/Vue는 이 render() 호출을 프레임워크가 알아서 해준다.
+    function render() {
+      const list = document.querySelector('#list'); // DOM에서 요소 찾기
+      list.innerHTML = '';                            // 기존 목록 싹 지우고
+
+      todos.forEach(todo => {
+        // 요소를 하나하나 직접 만든다 (= DOM 조작)
+        const li = document.createElement('li');
+        if (todo.done) li.classList.add('done');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = todo.done;
+        checkbox.addEventListener('change', () => toggleTodo(todo.id));
+
+        const span = document.createElement('span');
+        span.textContent = todo.title;
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '수정';
+        editBtn.addEventListener('click', () => editTodo(todo.id));
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '삭제';
+        delBtn.addEventListener('click', () => deleteTodo(todo.id));
+
+        li.append(checkbox, span, editBtn, delBtn);
+        list.appendChild(li); // 실제 DOM 트리에 붙이는 순간 화면에 보인다
+      });
+
+      // 남은 개수도 직접 계산해서 직접 넣는다
+      const remain = todos.filter(t => !t.done).length;
+      document.querySelector('#count').textContent = `남은 할 일: ${remain} / 전체 ${todos.length}`;
+    }
+
+    // ===== 3. Create =====
+    function addTodo() {
+      const input = document.querySelector('#title');
+      const title = input.value.trim();
+      if (!title) return alert('할 일을 입력하세요');
+
+      todos.push({ id: nextId++, title, done: false });
+      input.value = '';
+      render(); // ← 데이터만 바꾸면 화면이 안 바뀐다! 직접 불러야 함 (바닐라의 핵심 불편함)
+    }
+
+    // ===== 4. Update =====
+    function toggleTodo(id) {
+      const todo = todos.find(t => t.id === id);
+      todo.done = !todo.done;
+      render();
+    }
+
+    function editTodo(id) {
+      const todo = todos.find(t => t.id === id);
+      const newTitle = prompt('수정할 내용', todo.title);
+      if (newTitle && newTitle.trim()) {
+        todo.title = newTitle.trim();
+        render();
+      }
+    }
+
+    // ===== 5. Delete =====
+    function deleteTodo(id) {
+      todos = todos.filter(t => t.id !== id);
+      render();
+    }
+
+    // ===== 6. 이벤트 연결 =====
+    document.querySelector('#addBtn').addEventListener('click', addTodo);
+    document.querySelector('#title').addEventListener('keyup', e => {
+      if (e.key === 'Enter') addTodo();
+    });
+
+    render(); // 첫 화면 그리기
+
+    /*
+      [실무 메모] 서버와 연동하면 이렇게 바뀐다 (Spring @RestController 기준)
+      async function addTodo() {
+        await fetch('/api/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title })
+        });
+        const res = await fetch('/api/todos');  // 다시 조회
+        todos = await res.json();
+        render();
+      }
+    */
+  </script>
+</body>
+</html>

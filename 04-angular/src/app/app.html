@@ -1,0 +1,37 @@
+<!-- Angular 템플릿 문법 (Vue와 비교하면서 보기) -->
+<div class="wrap">
+  <h1>할 일 (Angular)</h1>
+
+  <!-- [(ngModel)]: 양방향 바인딩 = Vue의 v-model  ("바나나 인 어 박스" 문법이라고 부름) -->
+  <!-- (keyup.enter): 이벤트 바인딩 = Vue의 @keyup.enter -->
+  <input [(ngModel)]="title" (keyup.enter)="addTodo()" placeholder="할 일을 입력하고 Enter" />
+  <!-- (click): 이벤트는 ( ) 로 감싼다 -->
+  <button (click)="addTodo()">추가</button>
+
+  <!-- {{ }} 출력은 Vue와 같음. signal은 함수처럼 () 붙여서 읽는다 -->
+  <p>남은 할 일: {{ remain() }} / 전체 {{ todos().length }}</p>
+
+  <ul>
+    <!-- @for: 반복 (Vue의 v-for). track = key 역할 -->
+    @for (todo of todos(); track todo.id) {
+      <!-- [class.done]: 속성 바인딩은 [ ] 로 감싼다 = Vue의 :class -->
+      <li [class.done]="todo.done">
+        <!-- [checked] 로 값 넣고, (change) 로 이벤트 받기 (단방향 + 이벤트 = React 방식) -->
+        <input type="checkbox" [checked]="todo.done" (change)="toggleTodo(todo.id)" />
+        <span>{{ todo.title }}</span>
+        <button (click)="editTodo(todo)">수정</button>
+        <button (click)="deleteTodo(todo.id)">삭제</button>
+      </li>
+    } @empty {
+      <!-- @empty: 목록이 비었을 때 (Vue는 v-if로 따로 처리했던 것) -->
+      <p>할 일이 없습니다.</p>
+    }
+  </ul>
+</div>
+
+<!--
+  괄호 정리 (Angular 문법의 핵심)
+  [속성]   = 데이터 → 화면   (단방향)
+  (이벤트) = 화면 → 데이터   (단방향)
+  [(값)]   = 양방향
+-->

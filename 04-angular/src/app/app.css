@@ -1,0 +1,6 @@
+/* 이 컴포넌트에만 적용됨 (Angular 기본 동작, Vue의 scoped와 같음) */
+.wrap { font-family: sans-serif; max-width: 480px; margin: 40px auto; }
+ul { padding: 0; }
+li { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+li span { flex: 1; }
+li.done span { text-decoration: line-through; color: #999; }

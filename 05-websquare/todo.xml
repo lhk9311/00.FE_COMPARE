@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================
+  WebSquare5 화면 파일 (.xml)
+  ※ 실행 검증 안 됨. 라이선스 있는 WebSquare Studio에서 확인 필요.
+     구조와 개념을 공부하는 용도로 보면 된다.
+
+  [React/Vue와 가장 큰 차이]
+  - 화면 = XML 파일 1개. Studio에서 드래그&드롭으로 그리면 이 XML이 자동 생성된다.
+  - 데이터는 "변수"가 아니라 DataCollection(DataMap, DataList)이라는 객체에 담는다.
+    → DataList = DB 테이블 같은 것. 행(row) 단위로 insertRow / setCellData / removeRow
+  - 그리드(gridView)를 DataList에 바인딩해두면, DataList만 바꿔도 그리드가 알아서 바뀐다.
+    → 이것도 결국 "데이터만 바꾸면 화면이 바뀐다"는 React/Vue와 같은 사상
+  - 서버 통신은 submission 이라는 걸 미리 정의해두고 호출한다.
+  ============================================================
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ev="http://www.w3.org/2001/xml-events"
+      xmlns:w2="http://www.inswave.com/websquare"
+      xmlns:xf="http://www.w3.org/2002/xforms">
+<head>
+  <w2:type>DEFAULT</w2:type>
+  <w2:buildDate/>
+
+  <!-- ===== 1. 데이터 정의 (model) ===== -->
+  <xf:model>
+    <w2:dataCollection baseNode="map">
+
+      <!-- DataList: 여러 행 = 테이블 (React의 todos 배열에 해당)
+           saveRemovedData="true": 삭제한 행도 상태값 'D'로 기억해뒀다가 서버에 보낼 수 있음 -->
+      <w2:dataList id="dlt_todo" baseNode="list" repeatNode="map" saveRemovedData="true">
+        <w2:columnInfo>
+          <w2:column id="id"    name="번호"  dataType="number"/>
+          <w2:column id="title" name="할 일" dataType="text"/>
+          <w2:column id="done"  name="완료"  dataType="text"/>
+        </w2:columnInfo>
+        <w2:data use="true">
+          <w2:row><id><![CDATA[1]]></id><title><![CDATA[DOM 개념 정리]]></title><done><![CDATA[Y]]></done></w2:row>
+          <w2:row><id><![CDATA[2]]></id><title><![CDATA[Vite 정리]]></title><done><![CDATA[N]]></done></w2:row>
+        </w2:data>
+      </w2:dataList>
+
+      <!-- DataMap: 키-값 1건 = DTO 1개 (입력창 값 보관용, React의 title 상태에 해당) -->
+      <w2:dataMap id="dma_input" baseNode="map">
+        <w2:keyInfo>
+          <w2:key id="title" name="입력값" dataType="text"/>
+        </w2:keyInfo>
+      </w2:dataMap>
+
+    </w2:dataCollection>
+
+    <w2:workflowCollection/>
+
+    <!--
+      [실무 메모] 서버 통신은 submission으로 정의한다 (이 예제에서는 미사용)
+      ref    = 보낼 데이터, target = 응답 받을 DataList
+      <xf:submission id="sbm_save" ref='data:json,dlt_todo' target='data:json,dlt_todo'
+                     action="/api/todos/save" method="post" mediatype="application/json"
+                     mode="asynchronous" ev:submitdone="scwin.sbm_save_submitdone"/>
+      호출: $p.executeSubmission("sbm_save");
+      → 행 상태값(C/U/D)을 같이 보내서 서버에서 insert/update/delete를 한 번에 처리하는 게 SI 단골 패턴
+    -->
+  </xf:model>
+
+  <!-- ===== 2. 스크립트 (로직) ===== -->
+  <!-- 함수는 scwin 객체에 붙이는 게 규칙 (화면 단위 전역 네임스페이스) -->
+  <script type="text/javascript" lazy="false"><![CDATA[
+
+  scwin.nextId = 3;
+
+  // 화면이 처음 열릴 때 (Vue onMounted / React useEffect 자리)
+  scwin.onpageload = function() {
+    scwin.fn_updateCount();
+  };
+
+  // ===== Create =====
+  scwin.btn_add_onclick = function(e) {
+    var title = dma_input.get("title");     // DataMap에서 값 꺼내기
+    if (!title || title.trim() === "") {
+      alert("할 일을 입력하세요");
+      return;
+    }
+    var row = dlt_todo.insertRow();         // 빈 행 추가, 추가된 행 번호 반환
+    dlt_todo.setCellData(row, "id", scwin.nextId++);
+    dlt_todo.setCellData(row, "title", title.trim());
+    dlt_todo.setCellData(row, "done", "N");
+    dma_input.set("title", "");             // 입력창 비우기 (바인딩되어 있어서 화면도 같이 비워짐)
+    scwin.fn_updateCount();
+  };
+
+  // ===== Update =====
+  // 그리드 셀이 편집 가능(inputType="text"/"checkbox")해서 그리드에서 바로 수정하면
+  // DataList 값이 자동으로 바뀐다 → 별도 수정 함수가 필요 없음 (Vue v-model과 비슷)
+  scwin.grd_todo_oncellclick = function(row, col, colId) {
+    if (colId === "done") scwin.fn_updateCount();
+  };
+
+  // ===== Delete =====
+  scwin.btn_delete_onclick = function(e) {
+    var row = grd_todo.getFocusedRowIndex(); // 그리드에서 선택된 행
+    if (row < 0) {
+      alert("삭제할 행을 선택하세요");
+      return;
+    }
+    dlt_todo.removeRow(row);
+    // 참고: deleteRow(row)는 행을 바로 지우지 않고 상태만 'D'로 표시 → 저장 버튼 누를 때 서버로 전송
+    scwin.fn_updateCount();
+  };
+
+  // 남은 개수 계산 (React/Vue처럼 자동 계산이 아니라 직접 갱신해줘야 함)
+  scwin.fn_updateCount = function() {
+    var total = dlt_todo.getRowCount();
+    var remain = 0;
+    for (var i = 0; i < total; i++) {
+      if (dlt_todo.getCellData(i, "done") !== "Y") remain++;
+    }
+    txt_count.setValue("남은 할 일: " + remain + " / 전체 " + total);
+  };
+
+  ]]></script>
+</head>
+
+<!-- ===== 3. 화면 (body) ===== -->
+<!-- 컴포넌트 id 접두어는 SI 현장 표준이 대부분 이런 식: ibx_(input) btn_(button) grd_(grid) txt_(text) -->
+<body ev:onpageload="scwin.onpageload">
+  <xf:group id="grp_wrap" style="width:520px; margin:40px auto;">
+
+    <w2:textbox id="txt_title" label="할 일 (WebSquare)" style="font-size:24px; font-weight:bold;"/>
+
+    <xf:group id="grp_input" style="margin:10px 0;">
+      <!-- ref="data:dma_input.title" : DataMap과 양방향 바인딩 (Vue v-model과 같은 개념) -->
+      <xf:input id="ibx_title" ref="data:dma_input.title" style="width:300px; height:24px;"/>
+      <xf:trigger id="btn_add" type="button" style="height:24px;" ev:onclick="scwin.btn_add_onclick">
+        <xf:label><![CDATA[추가]]></xf:label>
+      </xf:trigger>
+      <xf:trigger id="btn_delete" type="button" style="height:24px;" ev:onclick="scwin.btn_delete_onclick">
+        <xf:label><![CDATA[선택 삭제]]></xf:label>
+      </xf:trigger>
+    </xf:group>
+
+    <w2:textbox id="txt_count" label="" style="margin-bottom:6px;"/>
+
+    <!-- gridView: dataList="data:dlt_todo" 로 DataList와 연결. SI 화면의 80%는 이 그리드다 -->
+    <w2:gridView id="grd_todo" dataList="data:dlt_todo" style="width:500px; height:250px;"
+                 autoFit="allColumn" scrollByColumn="false" focusMode="row"
+                 ev:oncellclick="scwin.grd_todo_oncellclick">
+      <w2:header id="header1">
+        <w2:row id="row1">
+          <w2:column id="h_done"  inputType="text" value="완료"  width="60"  displayMode="label"/>
+          <w2:column id="h_title" inputType="text" value="할 일" width="440" displayMode="label"/>
+        </w2:row>
+      </w2:header>
+      <w2:gBody id="gBody1">
+        <w2:row id="row2">
+          <!-- id가 DataList의 컬럼 id와 같아야 값이 연결된다 -->
+          <w2:column id="done"  inputType="checkbox" width="60" trueValue="Y" falseValue="N"/>
+          <w2:column id="title" inputType="text"     width="440"/>
+        </w2:row>
+      </w2:gBody>
+    </w2:gridView>
+
+  </xf:group>
+</body>
+</html>
